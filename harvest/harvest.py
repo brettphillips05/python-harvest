@@ -1,12 +1,15 @@
 """
  harvest.py
 
- Author: Jonathan Hosmer (forked from https://github.com/lionheart/python-harvest.git)
- Date: Sat Jan 31 12:17:16 2015
+ Author: Brett Phillips(forked from https://github.com/lionheart/python-harvest.git)
+ Date: Wednesday August 19 2015
+ Description: For the sake of using Google app engine with the Harvest API, using 
+ urllib2 rather that the requests library
 
 """
 
-import requests
+import urllib2
+import json
 from urlparse import urlparse
 from base64   import b64encode as enc64
 
@@ -181,26 +184,26 @@ class Harvest(object):
         return self._request('DELETE', path, data)
     def _request(self, method='GET', path='/', data=None):
         url = '{self.uri}{path}'.format(self=self, path=path)
-        kwargs = {
-            'method'  : method,
-            'url'     : '{self.uri}{path}'.format(self=self, path=path),
-            'headers' : self.__headers,
-            'data'    : data,
-        }
-        if 'Authorization' not in self.__headers:
-            kwargs['auth'] = (self.email, self.password)
-
         try:
-            resp = requests.request(**kwargs)
+            req = urllib2.Request('{self.uri}{path}'.format(self=self, path=path), data=data, headers=self.__headers)
+            resp = urllib2.urlopen(req)
             if 'DELETE' not in method:
-                return resp.json()
+                return json.loads(resp.read())
             return resp
         except Exception, e:
             raise HarvestError(e)
 
+    def people(self, user=None):
+        if (user): return self._get('/people/{0}'.format(user))
+        return self._get('/people')
+        
+    def people_expenses(self, user_id, fromDate, toDate):
+        t=self._get('/people/{0}/expenses?from={1}&to={2}'.format(user_id, fromDate, toDate))
+        return t
+        
 def status():
     try:
-        status = requests.get(HARVEST_STATUS_URL).json().get('status', {})
+        status = json.loads(urllib2.urlopen('http://www.harveststatus.com/api/v2/status.json').read()).get('status', {})
     except:
         status = {}
     return status
